@@ -1153,10 +1153,15 @@ class Nmcli(object):
         self.ip6 = module.params['ip6']
         self.gw6 = module.params['gw6']
         self.gw6_ignore_auto = module.params['gw6_ignore_auto']
+        self.routes6 = module.params['routes6']
+        self.route_metric6 = module.params['route_metric6']
+        self.routing_rules6 = module.params['routing_rules6']
+        self.never_default6 = module.params['never_default6']
         self.dns6 = module.params['dns6']
         self.dns6_search = module.params['dns6_search']
         self.dns6_ignore_auto = module.params['dns6_ignore_auto']
         self.method6 = module.params['method6']
+        self.may_fail6 = module.params['may_fail6']
         self.mtu = module.params['mtu']
         self.stp = module.params['stp']
         self.priority = module.params['priority']
@@ -1260,7 +1265,12 @@ class Nmcli(object):
                 'ipv6.ignore-auto-dns': self.dns6_ignore_auto,
                 'ipv6.gateway': self.gw6,
                 'ipv6.ignore-auto-routes': self.gw6_ignore_auto,
+                'ipv6.routes': self.routes6,
+                'ipv6.route-metric': self.route_metric6,
+                'ipv6.routing-rules': self.routing_rules6,
+                'ipv6.never-default': self.never_default6,
                 'ipv6.method': self.ipv6_method,
+                'ipv6.may-fail': self.may_fail6,
             })
 
         # Layer 2 options.
@@ -1464,8 +1474,10 @@ class Nmcli(object):
                        'ipv4.ignore-auto-dns',
                        'ipv4.ignore-auto-routes',
                        'ipv4.may-fail',
+                       'ipv6.never-default',
                        'ipv6.ignore-auto-dns',
                        'ipv6.ignore-auto-routes',
+                       'ipv6.may-fail',
                        '802-11-wireless.hidden'):
             return bool
         elif setting in ('ipv4.dns',
@@ -1474,6 +1486,8 @@ class Nmcli(object):
                          'ipv4.routing-rules',
                          'ipv6.dns',
                          'ipv6.dns-search',
+                         'ipv6.routes',
+                         'ipv6.routing-rules',
                          '802-11-wireless-security.group',
                          '802-11-wireless-security.leap-password-flags',
                          '802-11-wireless-security.pairwise',
@@ -1599,7 +1613,7 @@ class Nmcli(object):
                             alias_key = alias_pair[0]
                             alias_value = alias_pair[1]
                             conn_info[alias_key] = alias_value
-                elif key == 'ipv4.routes':
+                elif key in ['ipv4.routes', 'ipv6.routes']:
                     conn_info[key] = [s.strip() for s in raw_value.split(';')]
                 elif key_type == list:
                     conn_info[key] = [s.strip() for s in raw_value.split(',')]
@@ -1678,10 +1692,12 @@ class Nmcli(object):
 
             if key in conn_info:
                 current_value = conn_info[key]
-                if key == 'ipv4.routes' and current_value is not None:
-                    # ipv4.routes do not have same options and show_connection() format
+                if key in ['ipv4.routes', 'ipv6.routes'] and current_value is not None:
+                    # ipv4.routes and ipv6.routes do not have same options and show_connection() format
                     # options: ['10.11.0.0/24 10.10.0.2', '10.12.0.0/24 10.10.0.2 200']
                     # show_connection(): ['{ ip = 10.11.0.0/24, nh = 10.10.0.2 }', '{ ip = 10.12.0.0/24, nh = 10.10.0.2, mt = 200 }']
+                    # options: ['2001:db8:1::/64 2001:db8::1', '2001:db8:2::/64 2001:db8::2 200']
+                    # show_connection(): ['{ 2001:db8:1::/64, nh = 2001:db8::1 }', '{ ip = 2001:db8:2::/64, nh = 2001:db8::2, mt = 200 }']
                     # Need to convert in order to compare both
                     current_value = [re.sub(r'^{\s*ip\s*=\s*([^, ]+),\s*nh\s*=\s*([^} ]+),\s*mt\s*=\s*([^} ]+)\s*}', r'\1 \2 \3',
                                      route) for route in current_value]
@@ -1770,10 +1786,15 @@ def main():
             ip6=dict(type='str'),
             gw6=dict(type='str'),
             gw6_ignore_auto=dict(type='bool', default=False),
+            routes6=dict(type='list', elements='str'),
+            route_metric6=dict(type='int'),
+            routing_rules6=dict(type='list', elements='str'),
+            never_default6=dict(type='bool', default=False),
             dns6=dict(type='list', elements='str'),
             dns6_search=dict(type='list', elements='str'),
             dns6_ignore_auto=dict(type='bool', default=False),
             method6=dict(type='str', choices=['ignore', 'auto', 'dhcp', 'link-local', 'manual', 'shared', 'disabled']),
+            may_fail6=dict(type='bool', default=True),
             # Bond Specific vars
             mode=dict(type='str', default='balance-rr',
                       choices=['802.3ad', 'active-backup', 'balance-alb', 'balance-rr', 'balance-tlb', 'balance-xor', 'broadcast']),
