@@ -157,6 +157,31 @@ options:
         type: bool
         default: false
         version_added: 3.2.0
+    routes6:
+        description:
+            - The list of ipv6 routes.
+            - Use the format '2001:db8:1::/64 2001:db8::1'
+        type: list
+        elements: str
+        version_added: 3.9.0
+    route_metric6:
+        description:
+            - Set metric level of ipv6 routes configured on interface.
+        type: int
+        version_added: 3.9.0
+    routing_rules6:
+        description:
+            - Is the same as in an C(ip route add) command, except always requires specifying a priority.
+        type: list
+        elements: str
+        version_added: 3.9.0
+    never_default6:
+        description:
+            - Set as default route.
+            - This parameter is mutually_exclusive with gw6 parameter.
+        type: bool
+        default: no
+        version_added: 3.9.0
     dns6:
         description:
             - A list of up to 3 dns servers.
@@ -182,6 +207,12 @@ options:
         type: str
         choices: [ignore, auto, dhcp, link-local, manual, shared, disabled]
         version_added: 2.2.0
+    may_fail6:
+        description:
+            - If you need I(ip6) configured before C(network-online.target) is reached, set this option to C(false).
+        type: bool
+        default: true
+        version_added: 3.9.0
     mtu:
         description:
             - The connection MTU, e.g. 9000. This can't be applied when creating the interface and is done once the interface has been created.
