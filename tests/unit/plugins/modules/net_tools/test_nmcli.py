@@ -563,6 +563,45 @@ ipv6.ignore-auto-dns:                   no
 ipv6.ignore-auto-routes:                no
 """
 
+TESTCASE_ETHERNET_STATIC_DUALSTACK = [
+    {
+        'type': 'ethernet',
+        'conn_name': 'non_existent_nw_device',
+        'ifname': 'ethernet_non_existant',
+        'ip4': '10.10.10.10/24',
+        'gw4': '10.10.10.1',
+        'dns4': ['1.1.1.1', '8.8.8.8'],
+        'ip6': '2001:db8::10/64',
+        'gw6': '2001:db8::1',
+        'dns6': ['2606:4700:4700::1111', '2001:4860:4860::8888'],
+        'state': 'present',
+        '_ansible_check_mode': False,
+    }
+]
+
+TESTCASE_ETHERNET_STATIC_DUALSTACK_SHOW_OUTPUT = """\
+connection.id:                          non_existent_nw_device
+connection.interface-name:              ethernet_non_existant
+connection.autoconnect:                 yes
+802-3-ethernet.mtu:                     auto
+ipv4.method:                            manual
+ipv4.addresses:                         10.10.10.10/24
+ipv4.gateway:                           10.10.10.1
+ipv4.ignore-auto-dns:                   no
+ipv4.ignore-auto-routes:                no
+ipv4.never-default:                     no
+ipv4.may-fail:                          yes
+ipv4.dns:                               1.1.1.1,8.8.8.8
+ipv6.method:                            manual
+ipv6.addresses:                         2001:db8::10/64
+ipv6.gateway:                           2001:db8::1
+ipv6.ignore-auto-dns:                   no
+ipv6.ignore-auto-routes:                no
+ipv6.never-default:                     no
+ipv6.may-fail:                          yes
+ipv6.dns:                               2606:4700:4700::1111,2001:4860:4860::8888
+"""
+
 TESTCASE_WIRELESS = [
     {
         'type': 'wifi',
@@ -879,6 +918,13 @@ def mocked_ethernet_connection_static_unchanged(mocker):
     mocker_set(mocker,
                connection_exists=True,
                execute_return=(0, TESTCASE_ETHERNET_STATIC_SHOW_OUTPUT, ""))
+
+
+@pytest.fixture
+def mocked_ethernet_connection_static_dualstack_unchanged(mocker):
+    mocker_set(mocker,
+               connection_exists=True,
+               execute_return=(0, TESTCASE_ETHERNET_STATIC_DUALSTACK_SHOW_OUTPUT, ""))
 
 
 @pytest.fixture
@@ -1956,6 +2002,63 @@ def test_create_ethernet_static(mocked_generic_connection_create, capfd):
 def test_ethernet_connection_static_unchanged(mocked_ethernet_connection_static_unchanged, capfd):
     """
     Test : Ethernet connection with static IP configuration unchanged
+    """
+    with pytest.raises(SystemExit):
+        nmcli.main()
+
+    out, err = capfd.readouterr()
+    results = json.loads(out)
+    assert not results.get('failed')
+    assert not results['changed']
+
+
+@pytest.mark.parametrize('patch_ansible_module', TESTCASE_ETHERNET_STATIC_DUALSTACK, indirect=['patch_ansible_module'])
+def test_create_ethernet_static_dualstack(mocked_generic_connection_create, capfd):
+    """
+    Test : Create ethernet connection with static dualstack IP configuration
+    """
+
+    with pytest.raises(SystemExit):
+        nmcli.main()
+
+    assert nmcli.Nmcli.execute_command.call_count == 2
+    arg_list = nmcli.Nmcli.execute_command.call_args_list
+    add_args, add_kw = arg_list[0]
+
+    assert add_args[0][0] == '/usr/bin/nmcli'
+    assert add_args[0][1] == 'con'
+    assert add_args[0][2] == 'add'
+    assert add_args[0][3] == 'type'
+    assert add_args[0][4] == 'ethernet'
+    assert add_args[0][5] == 'con-name'
+    assert add_args[0][6] == 'non_existent_nw_device'
+
+    add_args_text = list(map(to_text, add_args[0]))
+    for param in ['connection.interface-name', 'ethernet_non_existant',
+                  'ipv4.addresses', '10.10.10.10/24',
+                  'ipv4.gateway', '10.10.10.1',
+                  'ipv4.dns', '1.1.1.1,8.8.8.8',
+                  'ipv6.addresses', '2001:db8::10/64',
+                  'ipv6.gateway', '2001:db8::1',
+                  'ipv6.dns', '2606:4700:4700::1111,2001:4860:4860::8888']:
+        assert param in add_args_text
+
+    up_args, up_kw = arg_list[1]
+    assert up_args[0][0] == '/usr/bin/nmcli'
+    assert up_args[0][1] == 'con'
+    assert up_args[0][2] == 'up'
+    assert up_args[0][3] == 'non_existent_nw_device'
+
+    out, err = capfd.readouterr()
+    results = json.loads(out)
+    assert not results.get('failed')
+    assert results['changed']
+
+
+@pytest.mark.parametrize('patch_ansible_module', TESTCASE_ETHERNET_STATIC_DUALSTACK, indirect=['patch_ansible_module'])
+def test_ethernet_connection_static_dualstack_unchanged(mocked_ethernet_connection_static_dualstack_unchanged, capfd):
+    """
+    Test : Ethernet connection with static dualstack IP configuration unchanged
     """
     with pytest.raises(SystemExit):
         nmcli.main()
